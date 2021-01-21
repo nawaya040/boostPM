@@ -114,6 +114,7 @@ simulation = function(result.for.simulation, #The information of the measures ob
                       ){
   
   n.trees = length(result.for.simulation)
+    d = ncol(result.for.simulation[[1]]$tree_left)
   simulation.current = matrix(runif(d*N),nrow=N,ncol=d)
   
   for(index_tree in n.trees:1){
