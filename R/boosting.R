@@ -34,6 +34,7 @@ boosting = function(data, #Data matrix
     model_parameters_list = list(c)
     names(model_parameters_list) = c("c")
     
+    
     out = SMCforPT(X_current,
                    1,
                    rep(1, n),
