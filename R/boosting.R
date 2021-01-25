@@ -92,7 +92,7 @@ boosting = function(data, #Data matrix
       grid_points_current = out_normalize$grid_points_new
     }
     
-    #print(paste("# trees", index_tree))
+    print(paste(index_tree, "/", n.trees))
   }
   
   out_boosting = list("densities" = density_current,
