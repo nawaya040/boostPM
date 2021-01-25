@@ -25,14 +25,15 @@ y.grid = seq(0.005,0.995,by=0.01)
 grid.points = as.matrix(expand.grid(x.grid,y.grid))
 
 out = boosting(data = data, #Data matrix
-         grid.points = grid.points, #Grid points used to compute the predictive density
-         max.resol = 5, #Maximum resolution
-         n.particle = 100, #Number of particles
-         n.grid.L = 32-1, #Number of grid points for the L's prior
-         c = 0.1, #Lerning rate
-         n.trees = 50, #The number of trees
-         out.pred.scores = FALSE, #If TRUE, output the predictive scores
-         out.for.simulation = TRUE #If TRUE, output the results necessary for simulation
+               grid.points = grid.points, #Grid points used to compute the predictive density
+               max.resol = 5, #Maximum resolution
+               n.particle = 100, #Number of particles
+               n.grid.L = 32-1, #Number of grid points for the L's prior
+               eta = 0.1, #Tuning parameter for the partition points' prior
+               c = 0.1, #Lerning rate
+               n.trees = 50, #The number of trees
+               out.pred.scores = FALSE, #If TRUE, output the predictive scores
+               out.for.simulation = TRUE #If TRUE, output the results necessary for simulation
 )
 
 #Visualize the estimated density function
