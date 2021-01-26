@@ -1,12 +1,13 @@
 boosting = function(data, #Data matrix
-                   grid.points, #Grid points used to compute the predictive density
-                   max.resol = 3, #Maximum resolution
-                   n.particle = 100, #Number of particles
-                   n.grid.L = 31, #Number of grid points for the L's prior
-                   c = 0.1, #Lerning rate
-                   n.trees = 50, #The number of trees
-                   out.pred.scores = FALSE, #If TRUE, output the predictive scores
-                   out.for.simulation = FALSE #If TRUE, output the results necessary for simulation
+                    grid.points, #Grid points used to compute the predictive density
+                    max.resol = 3, #Maximum resolution
+                    n.particle = 100, #Number of particles
+                    n.grid.L = 31, #Number of grid points for the L's prior
+                    eta = 0.01, #Tuning parameter for the partition points' prior
+                    c = 0.1, #Lerning rate
+                    n.trees = 50, #The number of trees
+                    out.pred.scores = FALSE, #If TRUE, output the predictive scores
+                    out.for.simulation = FALSE #If TRUE, output the results necessary for simulation
 ){
   if(ncol(data) == ncol(grid.points)){
     d = ncol(data)
@@ -26,7 +27,7 @@ boosting = function(data, #Data matrix
   if(out.for.simulation == TRUE){
     result_store = list()
   }
-
+  
   #Implement the FS algorithm
   for(index_tree in 1:n.trees){
     
@@ -34,13 +35,12 @@ boosting = function(data, #Data matrix
     model_parameters_list = list(c)
     names(model_parameters_list) = c("c")
     
-    
     out = SMCforPT(X_current,
                    1,
                    rep(1, n),
                    grid.points,
                    rep(1,n_grid),
-                   0.1,
+                   eta,
                    1,
                    model_parameters_list,
                    n.particle,
@@ -53,7 +53,7 @@ boosting = function(data, #Data matrix
                    3
     )
     
-
+    
     tree_left = t(out$tree_left)
     tree_right = t(out$tree_right)
     n_nodes = nrow(tree_left)
@@ -68,22 +68,22 @@ boosting = function(data, #Data matrix
       }
     }
     
-    children_IDs = out$children_IDs
+    children_IDs = out$children_IDs+1
     Is_non_terminal = numeric(n_nodes)
     Is_non_terminal[which(children_IDs[1,] > 1)] = 1
     
     #Residualization + Computing the variable iportance
-    out_normalize = residualize(X_current, grid_points_current, tree_left, tree_right, levels, post_states, Is_non_terminal, children_IDs, c)
-
+    out_normalize = residualize(X_current, grid_points_current, tree_left, tree_right, levels, post_states, Is_non_terminal, children_IDs-1, c)
+    
     importance_store = importance_store + out_normalize$importance
     density_current = density_current * out_normalize$pred_densities
     
     pred_score_store[index_tree] = mean(log(density_current + 1e-100))
     
     if(out.for.simulation==TRUE){
-       result_store[[index_tree]] = list("tree_left" = tree_left,
+      result_store[[index_tree]] = list("tree_left" = tree_left,
                                         "tree_right" = tree_right,
-                                        "children_IDs" = children_IDs+1,
+                                        "children_IDs" = children_IDs,
                                         "theta_post" = out_normalize$theta_post)
     }
     
@@ -112,10 +112,10 @@ boosting = function(data, #Data matrix
 
 simulation = function(result.for.simulation, #The information of the measures obtained in the FS algorithm
                       N #The size of the simulated data
-                      ){
+){
   
   n.trees = length(result.for.simulation)
-    d = ncol(result.for.simulation[[1]]$tree_left)
+  d = ncol(result.for.simulation[[1]]$tree_left)
   simulation.current = matrix(runif(d*N),nrow=N,ncol=d)
   
   for(index_tree in n.trees:1){
