@@ -3,146 +3,81 @@
 
 using namespace Rcpp;
 using namespace arma;
+using namespace std;
 
-ivec Count_groups(const int& G, const ivec& groups){
-  ivec out(G);
-  
-  for(int g=0;g<G;g++){
-    uvec indices_temp = find(groups == g);
-    out(g) = indices_temp.n_rows;
-  }
-
-  return out;
-} 
-
-int get_position_index(const double& x, const double& dleft, const double& dright, const int& NL){
-  double x_normalized = (x - dleft) / (dright - dleft);
-  int out = floor(x_normalized * (double) NL);
-  
-  return out;
-}
-
-vec colsum_for_cube(const cube& Q, const int& ncol){
-  vec out(ncol);
-  
-  for(int j=0;j<ncol;j++){
-    out(j) = accu(Q.col(j));
-  }
-  
-  return out;
-} 
-
-ivec colsum_for_icube(const icube& Q, const int& ncol){
-  ivec out(ncol);
-  
-  for(int j=0;j<ncol;j++){
-    out(j) = accu(Q.col(j));
-  }
-  
-  return out;
-} 
-
-
-//Take a sum of a column vector
-double ColSum_log(const arma::vec& vx)
-{
-  double max_temp = arma::max(vx);
-  arma::vec vx_normalized = vx - max_temp;
-  
-  return max_temp + log(sum(exp(vx_normalized)));	
-}
-
-//Take a sum of an input matrix. The output is also a log value.
-double Sum_log(const arma::mat& mx)
-{
-  double max_temp = mx.max();
-  arma::mat mx_normalized = mx - max_temp;
-  
-  return max_temp + log(accu(exp(mx - max_temp)));	
-}
-
-//Normalize elements of a log-vector to make the sum 1.
-arma::vec Normalize_log(const arma::vec& vx)
-{
-  int length = vx.n_rows;
-  arma::vec out(length);
-  
-  arma::vec v_temp(length);
-  double d_temp;
-  
-  for(int i=0;i<length; ++i)
-  {
-    v_temp = exp(vx - vx(i));
-    d_temp = sum( exp(vx - vx(i)) );
-    
-    out(i) = pow(d_temp, -1);
-  }
-  
-  return out;
-}
-
-//Sample from multinomial distribtion
-//It outputs an index
 int OneSample(const arma::vec& vw){
-  double u = runif(1)(0);
+  double u = R::runif(0,1);
   arma::uvec out = find(cumsum(vw) > u, 1);
   
   return (int) out(0);
 }
 
-//Computes the ESS
-double ComputeESS(const arma::vec& vw){
-  arma::vec vw2 = pow(vw,2.0);
-  double deno = sum(vw2);
-  double out = pow(deno,-1.0);
-  
-  return out;
+int OneSample_uniform(const int size){
+  vec vw(size);
+  vw.fill(1.0 / (double) size);
+  return OneSample(vw);
 }
 
-
-//Output the indices for the resampling
-//NOTICE::the indices are NOT sorted.
-arma::uvec Resample_index(const int length_output,const arma::colvec& vw) {
-  
-  arma::colvec vu = runif(length_output);
-  arma::colvec cum_w = cumsum(vw);
-  
-  arma::uvec indices = zeros<uvec>(length_output);
-  
-  for (int i = 0; i < length_output; i++) {
-    arma::uvec indices_i = find(cum_w < vu(i));
-    indices(i) = indices_i.n_elem;
-  }
-  
-  return(sort(indices));
-}
-
-//Resample for cubes
-void Resample_cube(const int length_output, arma::cube& cx, const arma::uvec& indices){
-  arma::cube cx_temp = cx;
-  for(int i=0; i<length_output ; i++){
-    cx.row(i) = cx_temp.row(indices(i));
-  }
-}
-
-//Resample for icubes
-void Resample_icube(const int length_output, arma::icube& cx, const arma::uvec& indices){
-  arma::icube cx_temp = cx;
-  for(int i=0; i<length_output ; i++){
-    cx.row(i) = cx_temp.row(indices(i));
-  }
-}
-
-//Resample for ucubes
-void Resample_ucube(const int length_output, arma::ucube& cx, const arma::uvec& indices){
-  arma::ucube cx_temp = cx;
-  for(int i=0; i<length_output ; i++){
-    cx.row(i) = cx_temp.row(indices(i));
-  }
-}
-
-//Compute the log of beta function
-arma::vec logBeta(const arma::vec& va,const arma::vec& vb)
+double log_beta(const double a, const double b)
 {
-  return lgamma(va) + lgamma(vb) - lgamma(va + vb);
+  return lgamma(a) + lgamma(b) - lgamma(a + b);
 }
+
+double log_sum_vec(const vec& log_x){
+  double log_x_max = log_x.max();
+  return log_x_max + log(sum(exp(log_x - log_x_max)));
+}
+
+double log_sum_mat(const mat& log_x){
+  return log_sum_vec(vectorise(log_x));
+}
+
+vec log_normalize_vec(const vec& log_x){
+  return exp(log_x - log_sum_vec(log_x));
+}
+
+mat log_normalize_mat(const mat& log_x){
+  int n_rows = log_x.n_rows;
+  int n_cols = log_x.n_cols;
+  return reshape(log_normalize_vec(vectorise(log_x)), n_rows, n_cols);
+}
+
+
+double second_max(vec x){
+  int len = x.n_rows;
+  
+  if(len < 2){
+    stop("error: the input vector too small");
+  }
+
+  double first, second;
+  
+  if(x(0) > x(1)){
+    first = x(0);
+    second = x(1);
+  }else{
+    first = x(1);
+    second = x(0);
+  }
+  
+  for(int i=2; i<len; i++){
+    double x_current = x(i);
+    
+    if(x_current > first){
+      second = first;
+      first = x_current;
+    }else if(x_current > second){
+      second = x_current;
+    }
+  }
+  
+  return second;
+}
+
+double second_min(vec x){
+  return (-1.0) * second_max((-1.0) * x);
+}
+
+
+
+

@@ -1,3 +1,3 @@
 useDynLib(boostPM, .registration=TRUE)
 importFrom(Rcpp, evalCpp)
-exportPattern("^[[:alpha:]]+")
+export(boosting, simulation_b, eval_density_b)

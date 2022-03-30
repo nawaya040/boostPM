@@ -7,71 +7,66 @@
 using namespace Rcpp;
 using namespace arma;
 
-// residualize
-List residualize(mat X, mat grid_points, mat tree_l0, mat tree_r0, ivec levels, mat post_states0, ivec Is_non_terminal, imat children_IDs, double c_learn);
-RcppExport SEXP _boostPM_residualize(SEXP XSEXP, SEXP grid_pointsSEXP, SEXP tree_l0SEXP, SEXP tree_r0SEXP, SEXP levelsSEXP, SEXP post_states0SEXP, SEXP Is_non_terminalSEXP, SEXP children_IDsSEXP, SEXP c_learnSEXP) {
+#ifdef RCPP_USE_GLOBAL_ROSTREAM
+Rcpp::Rostream<true>&  Rcpp::Rcout = Rcpp::Rcpp_cout_get();
+Rcpp::Rostream<false>& Rcpp::Rcerr = Rcpp::Rcpp_cerr_get();
+#endif
+
+// do_boosting
+List do_boosting(mat X, double precision, double alpha, double beta, double gamma, int max_resol, int num_each_dim, int num_second, double learn_rate, int min_obs, int J, double margin_size, double eta_subsample, int max_n_var);
+RcppExport SEXP _boostPM_do_boosting(SEXP XSEXP, SEXP precisionSEXP, SEXP alphaSEXP, SEXP betaSEXP, SEXP gammaSEXP, SEXP max_resolSEXP, SEXP num_each_dimSEXP, SEXP num_secondSEXP, SEXP learn_rateSEXP, SEXP min_obsSEXP, SEXP JSEXP, SEXP margin_sizeSEXP, SEXP eta_subsampleSEXP, SEXP max_n_varSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
     Rcpp::traits::input_parameter< mat >::type X(XSEXP);
-    Rcpp::traits::input_parameter< mat >::type grid_points(grid_pointsSEXP);
-    Rcpp::traits::input_parameter< mat >::type tree_l0(tree_l0SEXP);
-    Rcpp::traits::input_parameter< mat >::type tree_r0(tree_r0SEXP);
-    Rcpp::traits::input_parameter< ivec >::type levels(levelsSEXP);
-    Rcpp::traits::input_parameter< mat >::type post_states0(post_states0SEXP);
-    Rcpp::traits::input_parameter< ivec >::type Is_non_terminal(Is_non_terminalSEXP);
-    Rcpp::traits::input_parameter< imat >::type children_IDs(children_IDsSEXP);
-    Rcpp::traits::input_parameter< double >::type c_learn(c_learnSEXP);
-    rcpp_result_gen = Rcpp::wrap(residualize(X, grid_points, tree_l0, tree_r0, levels, post_states0, Is_non_terminal, children_IDs, c_learn));
+    Rcpp::traits::input_parameter< double >::type precision(precisionSEXP);
+    Rcpp::traits::input_parameter< double >::type alpha(alphaSEXP);
+    Rcpp::traits::input_parameter< double >::type beta(betaSEXP);
+    Rcpp::traits::input_parameter< double >::type gamma(gammaSEXP);
+    Rcpp::traits::input_parameter< int >::type max_resol(max_resolSEXP);
+    Rcpp::traits::input_parameter< int >::type num_each_dim(num_each_dimSEXP);
+    Rcpp::traits::input_parameter< int >::type num_second(num_secondSEXP);
+    Rcpp::traits::input_parameter< double >::type learn_rate(learn_rateSEXP);
+    Rcpp::traits::input_parameter< int >::type min_obs(min_obsSEXP);
+    Rcpp::traits::input_parameter< int >::type J(JSEXP);
+    Rcpp::traits::input_parameter< double >::type margin_size(margin_sizeSEXP);
+    Rcpp::traits::input_parameter< double >::type eta_subsample(eta_subsampleSEXP);
+    Rcpp::traits::input_parameter< int >::type max_n_var(max_n_varSEXP);
+    rcpp_result_gen = Rcpp::wrap(do_boosting(X, precision, alpha, beta, gamma, max_resol, num_each_dim, num_second, learn_rate, min_obs, J, margin_size, eta_subsample, max_n_var));
     return rcpp_result_gen;
 END_RCPP
 }
-// G_inverse
-mat G_inverse(mat Y, mat tree_l, mat tree_r, vec theta_post, mat children_IDs);
-RcppExport SEXP _boostPM_G_inverse(SEXP YSEXP, SEXP tree_lSEXP, SEXP tree_rSEXP, SEXP theta_postSEXP, SEXP children_IDsSEXP) {
+// simulation
+mat simulation(List tree_list, int size_simulation, mat support);
+RcppExport SEXP _boostPM_simulation(SEXP tree_listSEXP, SEXP size_simulationSEXP, SEXP supportSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< mat >::type Y(YSEXP);
-    Rcpp::traits::input_parameter< mat >::type tree_l(tree_lSEXP);
-    Rcpp::traits::input_parameter< mat >::type tree_r(tree_rSEXP);
-    Rcpp::traits::input_parameter< vec >::type theta_post(theta_postSEXP);
-    Rcpp::traits::input_parameter< mat >::type children_IDs(children_IDsSEXP);
-    rcpp_result_gen = Rcpp::wrap(G_inverse(Y, tree_l, tree_r, theta_post, children_IDs));
+    Rcpp::traits::input_parameter< List >::type tree_list(tree_listSEXP);
+    Rcpp::traits::input_parameter< int >::type size_simulation(size_simulationSEXP);
+    Rcpp::traits::input_parameter< mat >::type support(supportSEXP);
+    rcpp_result_gen = Rcpp::wrap(simulation(tree_list, size_simulation, support));
     return rcpp_result_gen;
 END_RCPP
 }
-// SMCforPT
-List SMCforPT(const mat X, const int G, const ivec groups_input, const mat grid_points, const ivec groups_pred_input, const double eta_R, const int I, const List model_parameters_list, const int M, const int max_K, const int NL, const double mixing_resample, const double thresh_resample, const int minimum_size, const int do_density_est, const int method);
-RcppExport SEXP _boostPM_SMCforPT(SEXP XSEXP, SEXP GSEXP, SEXP groups_inputSEXP, SEXP grid_pointsSEXP, SEXP groups_pred_inputSEXP, SEXP eta_RSEXP, SEXP ISEXP, SEXP model_parameters_listSEXP, SEXP MSEXP, SEXP max_KSEXP, SEXP NLSEXP, SEXP mixing_resampleSEXP, SEXP thresh_resampleSEXP, SEXP minimum_sizeSEXP, SEXP do_density_estSEXP, SEXP methodSEXP) {
+// evaluate_log_density
+List evaluate_log_density(List tree_list, mat eval_points, mat support);
+RcppExport SEXP _boostPM_evaluate_log_density(SEXP tree_listSEXP, SEXP eval_pointsSEXP, SEXP supportSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< const mat >::type X(XSEXP);
-    Rcpp::traits::input_parameter< const int >::type G(GSEXP);
-    Rcpp::traits::input_parameter< const ivec >::type groups_input(groups_inputSEXP);
-    Rcpp::traits::input_parameter< const mat >::type grid_points(grid_pointsSEXP);
-    Rcpp::traits::input_parameter< const ivec >::type groups_pred_input(groups_pred_inputSEXP);
-    Rcpp::traits::input_parameter< const double >::type eta_R(eta_RSEXP);
-    Rcpp::traits::input_parameter< const int >::type I(ISEXP);
-    Rcpp::traits::input_parameter< const List >::type model_parameters_list(model_parameters_listSEXP);
-    Rcpp::traits::input_parameter< const int >::type M(MSEXP);
-    Rcpp::traits::input_parameter< const int >::type max_K(max_KSEXP);
-    Rcpp::traits::input_parameter< const int >::type NL(NLSEXP);
-    Rcpp::traits::input_parameter< const double >::type mixing_resample(mixing_resampleSEXP);
-    Rcpp::traits::input_parameter< const double >::type thresh_resample(thresh_resampleSEXP);
-    Rcpp::traits::input_parameter< const int >::type minimum_size(minimum_sizeSEXP);
-    Rcpp::traits::input_parameter< const int >::type do_density_est(do_density_estSEXP);
-    Rcpp::traits::input_parameter< const int >::type method(methodSEXP);
-    rcpp_result_gen = Rcpp::wrap(SMCforPT(X, G, groups_input, grid_points, groups_pred_input, eta_R, I, model_parameters_list, M, max_K, NL, mixing_resample, thresh_resample, minimum_size, do_density_est, method));
+    Rcpp::traits::input_parameter< List >::type tree_list(tree_listSEXP);
+    Rcpp::traits::input_parameter< mat >::type eval_points(eval_pointsSEXP);
+    Rcpp::traits::input_parameter< mat >::type support(supportSEXP);
+    rcpp_result_gen = Rcpp::wrap(evaluate_log_density(tree_list, eval_points, support));
     return rcpp_result_gen;
 END_RCPP
 }
 
 static const R_CallMethodDef CallEntries[] = {
-    {"_boostPM_residualize", (DL_FUNC) &_boostPM_residualize, 9},
-    {"_boostPM_G_inverse", (DL_FUNC) &_boostPM_G_inverse, 5},
-    {"_boostPM_SMCforPT", (DL_FUNC) &_boostPM_SMCforPT, 16},
+    {"_boostPM_do_boosting", (DL_FUNC) &_boostPM_do_boosting, 14},
+    {"_boostPM_simulation", (DL_FUNC) &_boostPM_simulation, 3},
+    {"_boostPM_evaluate_log_density", (DL_FUNC) &_boostPM_evaluate_log_density, 3},
     {NULL, NULL, 0}
 };
 
