@@ -35,7 +35,7 @@ out = boosting(# parameters for boosting
                c0 = 0.1, # c0 = global scale of the learning parameter
                gamma = 0.1, # gamma = stronger regularization for small nodes
                max_resol = 50, # maximum resolution (depth) of trees
-               min_obs = 5, # if # obs in a node > min_obs, this node is no longer split
+               min_obs = 5, # if # obs in a node < min_obs, this node is no longer split
                eta_subsample = 1.0, # eta * n observations are used to learn a new tree
                J = 8, # # grid points for splitting = 2^J-1 
                max_n_var = d, # this is an experimental one so should be set to d 
