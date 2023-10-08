@@ -1,8 +1,7 @@
 // [[Rcpp::depends(RcppArmadillo)]]
 #include <RcppArmadillo.h>
-#include<bits/stdc++.h>
+#include <bits/stdc++.h>
 #include "class_boosting.h"
-#include "count_tree.h"
 #include "helpers.h"
 
 using namespace Rcpp;
@@ -10,7 +9,6 @@ using namespace arma;
 using namespace std;
 
 #define INDEX_ZERO 0
-#define NUM_MOVES 2
 #define LARGE_NUMBER 1e+100
 
 #define MIN_WIDTH 1e-10
@@ -26,8 +24,10 @@ class_boosting::class_boosting(
                      int num_second,
                      double learn_rate,
                      int min_obs,
-                     int J,
+                     int nbins,
                      double eta_subsample,
+                     double thresh_stop,
+                     int ntrees_wait,
                      int max_n_var
 ):
   X(X),
@@ -40,8 +40,10 @@ class_boosting::class_boosting(
   num_second(num_second),
   learn_rate(learn_rate),
   min_obs(min_obs),
-  J(J),
+  nbins(nbins),
   eta_subsample(eta_subsample),
+  thresh_stop(thresh_stop),
+  ntrees_wait(ntrees_wait),
   max_n_var(max_n_var)
 {
 
@@ -68,29 +70,24 @@ void class_boosting::init(){ //Initialization
   residuals_current = X.t();
   X.clear();
   
-  //Make (another type of) tree used for counting
-  ctree.init(J);
-  
   num_trees = num_each_dim * d + num_second;
-  
-  
+
   //input possible values of L
-  double gap = pow(2.0, (double) -J);
-  num_grid_points_L = pow(2,J)-1;
+  double gap = 1.0 / (double) nbins;
+  num_grid_points_L = nbins - 1;
   L_candidates = linspace(gap, 1- gap, num_grid_points_L);
   
   //make a matrix used to compute the posterior probabilities
   log_like_matrix = zeros(d, num_grid_points_L);
 
-  //vectors to store the information of trees
-  tree_size_store = zeros(num_trees);
-  max_depth_store = zeros(num_trees);
-  
   //vector to store the variable importance 
   importances = zeros(d);
   
   active_vars = zeros<ivec>(d);
   vars_chosen = zeros<ivec>(d);
+  
+  // subsample the data every iteration (we don't if eta = 1.0)
+  size_subsample = floor(eta_subsample * (double) n);
 }
 
 
@@ -121,20 +118,9 @@ Node* class_boosting::get_root_node(){
   new_node->precision = compute_precision(new_node->depth);
   
   
-  if(eta_subsample < 1.0){
-    //Do subsampling
-    int size_subsample = eta_subsample * (double) n;
-    uvec indices_used = randperm(n, size_subsample);
-    
-    for(int i=0; i<size_subsample; i++){
-      new_node->indices.push_back(indices_used(i));
-    } 
-  }else{
-    //Don't subsample
-    for(int i=0; i<n; i++){
-      new_node->indices.push_back(i);
-    } 
-  }
+  for(int i=0; i<size_subsample; i++){
+    new_node->indices.push_back(indices_used(i));
+  } 
   
   return new_node;
 }
@@ -245,73 +231,122 @@ Node* class_boosting::find_terminal_node(Node* root, vec& x){
 void class_boosting::boosting(){
   
   //tree boosting
-
-  for(int index_tree=0; index_tree<num_trees; index_tree++){
-
-    active_vars.fill(0);
-    vars_chosen.fill(0);
-    
-    if(index_tree < num_each_dim * d){ //first stage
-      int dim_curr = index_tree / num_each_dim;
-      active_vars(dim_curr) = 1;
-      
-      is_first_stage = true;
-
-    }else{//second stage
-      active_vars.fill(1);
-      
-      is_first_stage = false;
-    }
-    
-    Node* root = get_root_node();
-    
-    //construct a tree recursively
-    d_store.clear();
-    l_store.clear();
-    theta_store.clear();
-    
-    construct_tree(root);
-    
-    //residualize
-    vec x_temp;
-    
-    for(int i=0;i<n;i++){
-      x_temp = residuals_current.col(i);
-      residuals_current.col(i) = residualize(root, x_temp);
-    } 
-    
-
-    //count # nodes
-    int count = 0;
-    count_total_nodes(root, count);
-    tree_size_store(index_tree) = count;
-    
-    //check the maximum depth
-    int depth_max = 0;
-    check_max_depth(root, depth_max);
-    max_depth_store(index_tree) = depth_max;
-    
-    //output the last residuals to check the performance
-    if(index_tree == num_trees-1){
-      residuals_last_boosting = residuals_current;
-    }
-    
-
-    //summarize the information of the current tree in the list
-    List list_curr_tree = Rcpp::List::create(Rcpp::Named("d") = d_store,
-                                             Rcpp::Named("l") = l_store,
-                                             Rcpp::Named("theta") = theta_store
-    );
-    
-    tree_list.push_back(list_curr_tree);
-    
-    clear_node(root);
-    
-    
-    print_progress_boosting(index_tree);
-
-  }
+  //step = 0,1,...,d-1, d
+  //step 0,...,d-1 are for the marginal distributions
+  //step d is for the joint distribution
   
+  for(int step=0; step<(d+1); step++){
+    
+    active_vars.fill(0);
+    
+    vec recent_improvements(ntrees_wait);
+    recent_improvements.fill(100.0); // this is a random large number
+    
+    int num_max_trees;
+
+    if(step < d){
+      active_vars(step) = 1;
+      is_first_stage = true;
+      num_max_trees = num_each_dim;
+    }else{
+      active_vars.fill(1);
+      is_first_stage = false;
+      num_max_trees = num_second;
+    }
+    
+    for(int index_tree=0; index_tree<num_max_trees; index_tree++){
+      
+      // print the current progress at the beginning of each step
+      if(index_tree == 0){
+        print_progress_boosting(step);
+      }
+      
+      // this vector is used if we want to use only a subset of the variables
+      vars_chosen.fill(0);
+      
+      // we subsample to obtain a temporary training data if necessary
+      uvec indices_permed = randperm(n);
+      indices_used = indices_permed.subvec(0, size_subsample-1);
+      if(eta_subsample < 1.0){
+        indices_not_used = indices_permed.subvec(size_subsample, n-1);
+      }
+
+      Node* root = get_root_node();
+      
+      //construct a tree recursively
+      d_store.clear();
+      l_store.clear();
+      theta_store.clear();
+      
+      construct_tree(root);
+      
+      //if the data is subsampled, check the fitting of the current tree
+      // using those not chosen (= "test data")
+      double mean_log_dens_train = 100.0;
+      if(eta_subsample < 1.0){
+        vec log_dens_train(n-size_subsample);
+        for(int i=0;i<n-size_subsample;i++){
+          vec x_temp = residuals_current.col(indices_not_used(i));
+          log_dens_train(i) = evaluate_density(root, x_temp);
+        }
+        mean_log_dens_train =  mean(log_dens_train);
+        
+        improvement_curve.push_back(mean_log_dens_train);
+      }
+      
+      recent_improvements.subvec(0, ntrees_wait-2) = recent_improvements.subvec(1, ntrees_wait-1);
+      recent_improvements(ntrees_wait-1) = mean_log_dens_train;
+      // if the improvement is too small, we jump to the next step
+      // we no longer use this current tree
+      
+      //Rcout << mean(recent_improvements) << "\n";
+      
+      if(mean(recent_improvements) < thresh_stop){
+        Rcout << index_tree << " trees are constructed in this step" << "\n";
+        clear_node(root);
+        break;
+      }else{
+        
+        if(index_tree == num_max_trees - 1){
+          Rcout << num_max_trees << " trees are constructed in this step" << "\n";
+        }
+        
+        //residualize
+        for(int i=0;i<n;i++){
+          vec x_temp = residuals_current.col(i);
+          residuals_current.col(i) = residualize(root, x_temp);
+        } 
+        
+        //count # nodes
+        int count = 0;
+        count_total_nodes(root, count);
+        tree_size_store.push_back(count);
+        
+        //check the maximum depth
+        int depth_max = 0;
+        check_max_depth(root, depth_max);
+        max_depth_store.push_back(depth_max);
+        
+        //output the last residuals to check the performance
+        //if(index_tree == num_trees-1){
+        //  residuals_last_boosting = residuals_current;
+        //}
+        
+        
+        //summarize the information of the current tree in the list
+        List list_curr_tree = Rcpp::List::create(Rcpp::Named("d") = d_store,
+                                                 Rcpp::Named("l") = l_store,
+                                                 Rcpp::Named("theta") = theta_store
+        );
+        
+        tree_list.push_back(list_curr_tree);
+        
+        clear_node(root);
+      }
+      
+    }
+  }
+
 }
 
 
@@ -330,7 +365,6 @@ void class_boosting::construct_tree(Node* node){
       stack_tree.push(curr);
       
       //decide whether or not to split the current node here
-      
       bool is_split;
       
       //we stop splitting when we are at the bottom
@@ -378,7 +412,6 @@ bool class_boosting::split_node(Node* node){
     
   }else{
     //Compute the precision
-    //double prec = get_precision(node) * (1 - learn_rate) / learn_rate * (double) n_current;
     double prec = get_precision(node) ;
     
     double alpha_l, alpha_r;
@@ -391,7 +424,6 @@ bool class_boosting::split_node(Node* node){
     for(int j=0; j<d; j++){
       
       if(active_vars(j) != 1){
-        
         for(int i=0;i<num_grid_points_L;i++){
           log_like_matrix(j, i) = - LARGE_NUMBER;
         }
@@ -430,7 +462,6 @@ bool class_boosting::split_node(Node* node){
     //Decide whether to divide the current node or node
     vec log_probs_split(2); //0: stop, 1: split
     
-    
     double split_prob = get_split_prob(node);
     
     log_probs_split(0) = log(1-split_prob);
@@ -441,7 +472,7 @@ bool class_boosting::split_node(Node* node){
     if(R::runif(0, 1) < probs_split(0)){
       //Stop splitting
       
-      //Don't forget clearn the current "indices" vector!
+      //Don't forget to clean the current "indices" vector!
       //This is effective to save the memory cost
       node->indices.clear();
       
@@ -493,7 +524,7 @@ bool class_boosting::split_node(Node* node){
         }
       }
       
-      //Don't forget clean the current "indices" vector!
+      //Don't forget to clean the current "indices" vector!
       //This is effective to save the memory cost
       node->indices.clear();
       
@@ -509,7 +540,7 @@ bool class_boosting::split_node(Node* node){
       is_split = true;
       
       //input the information of the selected variable
-      //If the number of selected variable is equal to the threshold, we do not selec the other variables anymore
+      //If the number of selected variable is equal to the threshold, we do not select the other variables anymore
       vars_chosen(dim_chosen) = 1;
       
       if(sum(vars_chosen) == max_n_var){
@@ -534,8 +565,8 @@ bool class_boosting::split_node(Node* node){
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 double class_boosting::get_precision(Node* node){
-  //Notice that the depth starts from 0
-  return pow((double) node->depth+1, gamma);
+  //In the current version, the precision of the beta prior is fixed to the input value
+  return precision;
 }
 
 //output: vector of observations that are "left" to each possible partition point
@@ -543,16 +574,21 @@ ivec class_boosting::make_left_count_vector(Node* node, int dim){
   //Make a vector of observations in the current dimension included in the current node
   vector<int> indices_temp = node->indices;
   int size = indices_temp.size();
-  vec x_temp(size);
-  for(int i=0; i<size; i++){
-    x_temp(i) = residuals_current(dim, indices_temp[i]);
-  }
-  
 
-  
   //Count values included in each interval
-  ivec count_vec = ctree.make_count_vector(x_temp, node->left_points(dim), node->right_points(dim));
+  ivec count_vec = zeros<ivec>(nbins);
+
+  double left = node->left_points(dim);
+  double right = node->right_points(dim);
   
+  double bin_width = (right - left) / (double) nbins;
+  
+  for(int i=0; i<size; i++){
+    double x_temp = residuals_current(dim, indices_temp[i]);
+    int ind = floor((x_temp - left) / bin_width);
+    count_vec(ind) = count_vec(ind) + 1;
+  }
+
   return cumsum(count_vec);
 }
 
@@ -593,28 +629,19 @@ void class_boosting::check_max_depth( Node* node, int& depth_max){
 }
 
 
-void class_boosting::print_progress_boosting(int index_tree){
+void class_boosting::print_progress_boosting(int step){
   
-  if(num_trees < 30){
-    Rcout << "boosting in progress..." << "\n";
-  }else{
-    if(index_tree == 0){
-      Rcout << "boosting in progress..." << "\n";
-      Rcout << "0" << "|--------------------------------------------------|" << "100%" << "\n";
-      Rcout << " |" ;
-    }else if(index_tree > 0){
-      int r = num_trees/50;
-      int rem = index_tree % r;
-      
-      if(rem == 0) {
-        Rcout << "*" ;
-      }
-      
-      if(index_tree == num_trees-1){
-        Rcout << "|" << "\n";
-      }
+  if(num_each_dim > 0){
+    if(step < d){
+      Rcout << "Estimating the marginal distribution... (" << step+1 << "/" << d << ")" << "\n"; 
+    }else if(step == d){
+      Rcout << "Estimating the dependency structure..." << "\n"; 
     }
+  }else{
+    Rcout << "Estimating the joint distribution..." << "\n"; 
+    Rcout << "(There is no step for estimating the marginal distributions)" << "\n"; 
   }
+  
 }
 
 
@@ -715,17 +742,28 @@ double class_boosting::evaluate_log_prior(Node* node){
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-List class_boosting::output(mat support_store){
+List class_boosting::output(){
   
   List out;
   
-  out = Rcpp::List::create(     Rcpp::Named("residuals_boosting") = residuals_last_boosting,
-                                Rcpp::Named("tree_size_store") = tree_size_store,
-                                Rcpp::Named("max_depth_store") = max_depth_store,
-                                Rcpp::Named("variable_importance") = importances,
-                                Rcpp::Named("support") = support_store,
-                                Rcpp::Named("tree_list") = tree_list
-                                );
+  if(eta_subsample < 1.0){
+    out = Rcpp::List::create(     Rcpp::Named("residuals_boosting") = residuals_current,
+                                  Rcpp::Named("tree_size_store") = tree_size_store,
+                                  Rcpp::Named("max_depth_store") = max_depth_store,
+                                  Rcpp::Named("variable_importance") = importances,
+                                  Rcpp::Named("tree_list") = tree_list,
+                                  Rcpp::Named("improvement_curve") = improvement_curve
+    );
+  }else{
+    out = Rcpp::List::create(     Rcpp::Named("residuals_boosting") = residuals_current,
+                                  Rcpp::Named("tree_size_store") = tree_size_store,
+                                  Rcpp::Named("max_depth_store") = max_depth_store,
+                                  Rcpp::Named("variable_importance") = importances,
+                                  Rcpp::Named("tree_list") = tree_list
+    );
+  }
+  
+
 
   
   return out;

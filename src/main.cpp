@@ -18,40 +18,14 @@ List do_boosting(mat X,
          int num_second,
          double learn_rate,
          int min_obs,
-         int J,
-         double margin_size,
+         int nbins,
          double eta_subsample,
+         double thresh_stop,
+         int ntrees_wait,
          int max_n_var
           ){
   
-  int d = X.n_cols;
-  mat support_store = zeros(d,2);
-  vec log_width_store = zeros(d);
-  
-  if(margin_size !=0.0){
-    //Rescale the observation points based on the minimum and maximum values
-    for(int j=0; j<d; j++){
-      double min_j = min(X.col(j));
-      double max_j = max(X.col(j));
-      double width_j = max_j - min_j;
-      
-      double m_resize = min(X.col(j)) - margin_size * width_j;
-      double M_resize = max(X.col(j)) + margin_size * width_j;
 
-      support_store(j,0) = m_resize;
-      support_store(j,1) = M_resize;
-           
-      X.col(j) = (X.col(j) - m_resize) / (M_resize - m_resize);
-      
-      log_width_store(j) = log(M_resize - m_resize);
-    }
-  }else{
-    for(int j=0; j<d; j++){
-      support_store(j,0) = 0;
-      support_store(j,1) = 1;
-    }
-  }
-  
   //Initialize the class object
   class_boosting my_boosting(X,
                               precision,
@@ -63,8 +37,10 @@ List do_boosting(mat X,
                               num_second,
                               learn_rate,
                               min_obs,
-                              J,
+                              nbins,
                               eta_subsample,
+                              thresh_stop,
+                              ntrees_wait,
                               max_n_var
                               );
   
@@ -73,8 +49,8 @@ List do_boosting(mat X,
   //Run the boosting algorithm 
   my_boosting.boosting();
 
-  out = my_boosting.output(support_store);
-  
+  out = my_boosting.output();
+
   //output the result
   return out;
 }

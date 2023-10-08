@@ -3,7 +3,6 @@
 
 // [[Rcpp::depends(RcppArmadillo)]]
 #include <RcppArmadillo.h>
-#include "count_tree.h"
 #include "helpers.h"
 
 using namespace Rcpp;
@@ -54,8 +53,10 @@ public:
                       int num_second,
                       double learn_rate,
                       int min_obs,
-                      int J,
+                      int nbins,
                       double eta_subsample,
+                      double thresh_stop,
+                      int ntrees_wait,
                       int max_n_var
   );
   
@@ -72,12 +73,14 @@ public:
 
   double learn_rate;
   int min_obs;
-  int J;
+  int nbins;
   
   double eta_subsample;
+  double thresh_stop;
+  int ntrees_wait;
   
   int max_n_var;
-  
+
   int parameter_for_test;
 
   //variables
@@ -89,9 +92,7 @@ public:
   ivec active_vars;
   ivec vars_chosen;
   
-  //tree for counting
-  count_tree ctree;
-  
+
   ///////////////////////////////////////////////////////////////////////////
   // variables for boosting
   mat residuals_current; //Note: this matrix is d x n
@@ -99,20 +100,26 @@ public:
   int num_grid_points_L;
   vec L_candidates;
   
-  //vec log_like_vec;
   int current_dim_first;
   mat log_like_matrix;
   
   Node** root_nodes;
   
-  vec tree_size_store;
-  vec max_depth_store;
+  vector<int> tree_size_store;
+  vector<int> max_depth_store;
   
   mat residuals_last_boosting;
 
   vec importances;
   
   bool is_first_stage;
+  
+  int size_subsample;
+  
+  uvec indices_used;
+  uvec indices_not_used;
+  
+  vector<double> improvement_curve;
   
   //variables to store the information of generated trees
   vector<int> d_store;
@@ -142,6 +149,8 @@ public:
   
   Node* find_terminal_node(Node* root, vec& x);
   
+  double evaluate_density(Node* root, vec& x);
+  
   //Boosting functions
   void boosting();
   void construct_tree(Node* node);
@@ -152,20 +161,19 @@ public:
   ivec make_left_count_vector(Node* node, int dim);
   double get_split_prob(Node* node);
   void check_max_depth( Node* node, int& depth_max);
-  void print_progress_boosting(int index_tree);
+  void print_progress_boosting(int step);
 
   vec residualize(Node* root, vec& x);
   
   double local_move(double x, double left_point, double right_point, 
                     double theta, double area_ratio, bool left);
-  double evaluate_density(Node* root, vec& x);
   double evaluate_log_prior(Node* node);
 
   //print the progress of mcmc sampling
   void print_progress(int index_MCMC);
   
   //output
-  List output(mat support_store);
+  List output();
   
   //destructor
   ~class_boosting();

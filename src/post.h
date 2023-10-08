@@ -45,7 +45,7 @@ Node* find_terminal_node(Node* root, vec& x);
 double local_move(double x, double left_point, double right_point, 
                   double theta, double area_ratio, bool left);
   
-//for clearning
+//for cleaning
 void clear_node(Node* root);
 
 #endif
