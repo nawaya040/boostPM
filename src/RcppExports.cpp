@@ -5,7 +5,6 @@
 #include <Rcpp.h>
 
 using namespace Rcpp;
-using namespace arma;
 
 #ifdef RCPP_USE_GLOBAL_ROSTREAM
 Rcpp::Rostream<true>&  Rcpp::Rcout = Rcpp::Rcpp_cout_get();
@@ -13,8 +12,8 @@ Rcpp::Rostream<false>& Rcpp::Rcerr = Rcpp::Rcpp_cerr_get();
 #endif
 
 // do_boosting
-List do_boosting(mat X, double precision, double alpha, double beta, double gamma, int max_resol, int num_each_dim, int num_second, double learn_rate, int min_obs, int J, double margin_size, double eta_subsample, int max_n_var);
-RcppExport SEXP _boostPM_do_boosting(SEXP XSEXP, SEXP precisionSEXP, SEXP alphaSEXP, SEXP betaSEXP, SEXP gammaSEXP, SEXP max_resolSEXP, SEXP num_each_dimSEXP, SEXP num_secondSEXP, SEXP learn_rateSEXP, SEXP min_obsSEXP, SEXP JSEXP, SEXP margin_sizeSEXP, SEXP eta_subsampleSEXP, SEXP max_n_varSEXP) {
+List do_boosting(mat X, double precision, double alpha, double beta, double gamma, int max_resol, int num_each_dim, int num_second, double learn_rate, int min_obs, int nbins, double eta_subsample, double thresh_stop, int ntrees_wait, int max_n_var);
+RcppExport SEXP _boostPM_do_boosting(SEXP XSEXP, SEXP precisionSEXP, SEXP alphaSEXP, SEXP betaSEXP, SEXP gammaSEXP, SEXP max_resolSEXP, SEXP num_each_dimSEXP, SEXP num_secondSEXP, SEXP learn_rateSEXP, SEXP min_obsSEXP, SEXP nbinsSEXP, SEXP eta_subsampleSEXP, SEXP thresh_stopSEXP, SEXP ntrees_waitSEXP, SEXP max_n_varSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -28,11 +27,12 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< int >::type num_second(num_secondSEXP);
     Rcpp::traits::input_parameter< double >::type learn_rate(learn_rateSEXP);
     Rcpp::traits::input_parameter< int >::type min_obs(min_obsSEXP);
-    Rcpp::traits::input_parameter< int >::type J(JSEXP);
-    Rcpp::traits::input_parameter< double >::type margin_size(margin_sizeSEXP);
+    Rcpp::traits::input_parameter< int >::type nbins(nbinsSEXP);
     Rcpp::traits::input_parameter< double >::type eta_subsample(eta_subsampleSEXP);
+    Rcpp::traits::input_parameter< double >::type thresh_stop(thresh_stopSEXP);
+    Rcpp::traits::input_parameter< int >::type ntrees_wait(ntrees_waitSEXP);
     Rcpp::traits::input_parameter< int >::type max_n_var(max_n_varSEXP);
-    rcpp_result_gen = Rcpp::wrap(do_boosting(X, precision, alpha, beta, gamma, max_resol, num_each_dim, num_second, learn_rate, min_obs, J, margin_size, eta_subsample, max_n_var));
+    rcpp_result_gen = Rcpp::wrap(do_boosting(X, precision, alpha, beta, gamma, max_resol, num_each_dim, num_second, learn_rate, min_obs, nbins, eta_subsample, thresh_stop, ntrees_wait, max_n_var));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -64,7 +64,7 @@ END_RCPP
 }
 
 static const R_CallMethodDef CallEntries[] = {
-    {"_boostPM_do_boosting", (DL_FUNC) &_boostPM_do_boosting, 14},
+    {"_boostPM_do_boosting", (DL_FUNC) &_boostPM_do_boosting, 15},
     {"_boostPM_simulation", (DL_FUNC) &_boostPM_simulation, 3},
     {"_boostPM_evaluate_log_density", (DL_FUNC) &_boostPM_evaluate_log_density, 3},
     {NULL, NULL, 0}
