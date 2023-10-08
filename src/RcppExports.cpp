@@ -5,6 +5,7 @@
 #include <Rcpp.h>
 
 using namespace Rcpp;
+using namespace arma;
 
 #ifdef RCPP_USE_GLOBAL_ROSTREAM
 Rcpp::Rostream<true>&  Rcpp::Rcout = Rcpp::Rcpp_cout_get();
@@ -12,12 +13,12 @@ Rcpp::Rostream<false>& Rcpp::Rcerr = Rcpp::Rcpp_cerr_get();
 #endif
 
 // do_boosting
-List do_boosting(mat X, double precision, double alpha, double beta, double gamma, int max_resol, int num_each_dim, int num_second, double learn_rate, int min_obs, int nbins, double eta_subsample, double thresh_stop, int ntrees_wait, int max_n_var);
+List do_boosting(arma::mat X, double precision, double alpha, double beta, double gamma, int max_resol, int num_each_dim, int num_second, double learn_rate, int min_obs, int nbins, double eta_subsample, double thresh_stop, int ntrees_wait, int max_n_var);
 RcppExport SEXP _boostPM_do_boosting(SEXP XSEXP, SEXP precisionSEXP, SEXP alphaSEXP, SEXP betaSEXP, SEXP gammaSEXP, SEXP max_resolSEXP, SEXP num_each_dimSEXP, SEXP num_secondSEXP, SEXP learn_rateSEXP, SEXP min_obsSEXP, SEXP nbinsSEXP, SEXP eta_subsampleSEXP, SEXP thresh_stopSEXP, SEXP ntrees_waitSEXP, SEXP max_n_varSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< mat >::type X(XSEXP);
+    Rcpp::traits::input_parameter< arma::mat >::type X(XSEXP);
     Rcpp::traits::input_parameter< double >::type precision(precisionSEXP);
     Rcpp::traits::input_parameter< double >::type alpha(alphaSEXP);
     Rcpp::traits::input_parameter< double >::type beta(betaSEXP);
@@ -37,27 +38,27 @@ BEGIN_RCPP
 END_RCPP
 }
 // simulation
-mat simulation(List tree_list, int size_simulation, mat support);
+arma::mat simulation(List tree_list, int size_simulation, arma::mat support);
 RcppExport SEXP _boostPM_simulation(SEXP tree_listSEXP, SEXP size_simulationSEXP, SEXP supportSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
     Rcpp::traits::input_parameter< List >::type tree_list(tree_listSEXP);
     Rcpp::traits::input_parameter< int >::type size_simulation(size_simulationSEXP);
-    Rcpp::traits::input_parameter< mat >::type support(supportSEXP);
+    Rcpp::traits::input_parameter< arma::mat >::type support(supportSEXP);
     rcpp_result_gen = Rcpp::wrap(simulation(tree_list, size_simulation, support));
     return rcpp_result_gen;
 END_RCPP
 }
 // evaluate_log_density
-List evaluate_log_density(List tree_list, mat eval_points, mat support);
+List evaluate_log_density(List tree_list, arma::mat eval_points, arma::mat support);
 RcppExport SEXP _boostPM_evaluate_log_density(SEXP tree_listSEXP, SEXP eval_pointsSEXP, SEXP supportSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
     Rcpp::traits::input_parameter< List >::type tree_list(tree_listSEXP);
-    Rcpp::traits::input_parameter< mat >::type eval_points(eval_pointsSEXP);
-    Rcpp::traits::input_parameter< mat >::type support(supportSEXP);
+    Rcpp::traits::input_parameter< arma::mat >::type eval_points(eval_pointsSEXP);
+    Rcpp::traits::input_parameter< arma::mat >::type support(supportSEXP);
     rcpp_result_gen = Rcpp::wrap(evaluate_log_density(tree_list, eval_points, support));
     return rcpp_result_gen;
 END_RCPP
